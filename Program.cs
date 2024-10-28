@@ -1,24 +1,65 @@
-﻿using OptimizelySDK;
+﻿using System.Diagnostics;
+using OptimizelySDK;
 using OptimizelySDK.Config;
 using OptimizelySDK.Entity;
 
-for (int i = 0; i < 1000; i++)
+namespace benchmark_testing;
+
+internal static class Program
 {
-    DotNetEnv.Env.Load();
-    var sdkKey = Environment.GetEnvironmentVariable("SDK_KEY_WITH_200_FLAGS");
+    // Best Practice: Initialize the OptimizelyInstance only once
+    private static readonly Optimizely? OptimizelyInstance;
 
-    var configManager = new HttpProjectConfigManager.Builder()
-        .WithSdkKey(sdkKey)
-        .Build(false); // sync mode
-
-    var optimizelyInstance = OptimizelyFactory.NewDefaultInstance(configManager);
-
-    var attributes = new UserAttributes
+    static Program()
     {
-        { "accountIdGuid", "mike-chu-testing" },
-        { "ring", "us" }
-    };
-    var output = optimizelyInstance.CreateUserContext("user123", attributes).DecideAll();
+        DotNetEnv.Env.Load();
+        var sdkKey = Environment.GetEnvironmentVariable("SDK_KEY_WITH_200_FLAGS");
 
-    Console.WriteLine($"{output.Count} decisions made at {DateTime.Now}");
+        var configManager = new HttpProjectConfigManager.Builder()
+            .WithSdkKey(sdkKey)
+            .Build(false); // sync mode
+
+        OptimizelyInstance = OptimizelyFactory.NewDefaultInstance(configManager);
+    }
+
+    public static void Main()
+    {
+        const int iterations = 1000;
+        RunBenchmark(iterations);
+    }
+
+    private static void RunBenchmark(int iterations)
+    {
+        var runStopwatch = new Stopwatch();
+        runStopwatch.Start();
+
+        for (int i = 0; i < iterations; i++)
+        {
+            int iteration = i;
+            var taskStopwatch = new Stopwatch();
+            taskStopwatch.Start();
+
+            var attributes = new UserAttributes
+            {
+                { "accountIdGuid", $"mike-chu-testing-{iteration}" },
+                { "ring", "us" }
+            };
+
+            var userContext =
+                OptimizelyInstance?.CreateUserContext($"user{iteration}", attributes);
+            var decisions = userContext?.DecideAll();
+
+            taskStopwatch.Stop();
+
+            if (decisions != null)
+            {
+                Console.WriteLine(
+                    $"DecideAll for user {iteration}, Decision Count {decisions.Count} after {taskStopwatch.ElapsedMilliseconds} ms");
+            }
+        }
+
+        runStopwatch.Stop();
+        Console.WriteLine(
+            $"Finished running {iterations} iterations after {runStopwatch.ElapsedMilliseconds} ms");
+    }
 }

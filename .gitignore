@@ -6,3 +6,4 @@ riderModule.iml
 .env
 trace.*
 .idea/
+/.vs/benchmark-testing/v17
