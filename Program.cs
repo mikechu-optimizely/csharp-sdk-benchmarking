@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using OptimizelySDK;
 using OptimizelySDK.Config;
 using OptimizelySDK.Entity;
@@ -33,7 +32,7 @@ internal static class Program
     {
         var runStopwatch = Stopwatch.StartNew();
 
-        var results = new ConcurrentDictionary<int, int>();
+        var results = new Dictionary<int, int>();
 
         Console.WriteLine($"Running {iterations} iterations, with timing output at the end...");
 
