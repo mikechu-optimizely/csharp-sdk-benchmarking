@@ -6,12 +6,12 @@ using OptimizelySDK.Entity;
 
 namespace benchmark_testing;
 
-internal static class Program
+internal static class ProgramAsync
 {
     // Best Practice: Initialize the OptimizelyInstance only once
     private static readonly Optimizely OptimizelyInstance;
 
-    static Program()
+    static ProgramAsync()
     {
         DotNetEnv.Env.Load();
         var sdkKey = Environment.GetEnvironmentVariable("SDK_KEY_WITH_200_FLAGS");
@@ -23,16 +23,17 @@ internal static class Program
         OptimizelyInstance = OptimizelyFactory.NewDefaultInstance(configManager);
     }
 
-    public static void Main()
+    public static async Task Main()
     {
         const int iterations = 1000;
-        RunBenchmark(iterations);
+        await RunBenchmarkAsync(iterations);
     }
 
-    private static void RunBenchmark(int iterations)
+    private static async Task RunBenchmarkAsync(int iterations)
     {
         var runStopwatch = Stopwatch.StartNew();
 
+        var tasks = new List<Task>();
         var results = new ConcurrentDictionary<int, int>();
 
         Console.WriteLine($"Running {iterations} iterations, with timing output at the end...");
@@ -40,22 +41,26 @@ internal static class Program
         for (int i = 0; i < iterations; i++)
         {
             int iteration = i;
-
-            var taskStopwatch = Stopwatch.StartNew();
-
-            var attributes = new UserAttributes
+            tasks.Add(Task.Run(async () =>
             {
-                { "accountIdGuid", $"mike-chu-testing-{iteration}" },
-                { "ring", "us" }
-            };
+                var taskStopwatch = Stopwatch.StartNew();
 
-            var userContext = OptimizelyInstance.CreateUserContext($"user{iteration}", attributes);
-            _ = userContext?.DecideAll();
+                var attributes = new UserAttributes
+                {
+                    { "accountIdGuid", $"mike-chu-testing-{iteration}" },
+                    { "ring", "us" }
+                };
 
-            taskStopwatch.Stop();
+                var userContext = OptimizelyInstance.CreateUserContext($"user{iteration}", attributes);
+                _ = await Task.Run(() => userContext?.DecideAll());
 
-            results.TryAdd(iteration, (int)taskStopwatch.ElapsedMilliseconds);
+                taskStopwatch.Stop();
+
+                results.TryAdd(iteration, (int)taskStopwatch.ElapsedMilliseconds);
+            }));
         }
+
+        await Task.WhenAll(tasks);
 
         runStopwatch.Stop();
         Console.WriteLine(
